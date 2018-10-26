@@ -2,9 +2,31 @@
 
 A simple database implemented by C++ which has some basic functions.
 
-# Environment
+# Building
 
-This project is built by **CMake** on **Linux**.
+This project is built by **CMake**(v2.8 or higher) on **Linux**. You should have these dependencies installed:
+
+- gcc/g++
+- git
+- cmake
+
+You can install them by this command(only for centos):
+
+```
+# yum install -y gcc gcc-c++ git cmake
+```
+
+If you have your environment ready, you can build this project.
+
+```
+$ cd MiniDB
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+```
+
+Now you can get the binary file in MiniDB\/bin.
 
 # License
 
