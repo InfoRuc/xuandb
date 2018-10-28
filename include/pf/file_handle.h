@@ -1,6 +1,6 @@
 /*
- * File: mdb_file.h
- * Description: MiniDB File interface
+ * File: file_handle.h
+ * Description: PF File interface
  * Author:
  * E-mail:
  *
@@ -12,13 +12,20 @@ struct FileHeader
     int free_page;
     int file_id;
 }
-class MDB_BufferMgr;
 
-class MDB_File
+class PF_BufferMgr;
+
+class PF_FileHandle
 {
+    private:
+        PF_BufferMgr *buffer_mgr_ptr;
+        FileHeader hdr;
+        int file_open;
+        int if_dirty;
+        int sysfd;
     public:
-        MDB_File();
-        ~MDB_File();
+        PF_FileHandle();
+        ~PF_FileHandle();
         void getFirstPage(MDB_Page &mdb_page) const;
         void getNextPage(int cur_pg_id, MDB_Page &mdb_page) const;
         void getPrevPage(int cur_pg_id, MDB_Page &mdb_page) const;
@@ -32,10 +39,4 @@ class MDB_File
         void flushPages() const;
         // Write a page or pages to disk, but do not remove from buffer pool
         void writePages(int pg_id = -1);    // '-1' means all pages
-    private:
-        MDB_BufferMgr *buffer_mgr_ptr;
-        FileHeader hdr;
-        int file_open;
-        int if_dirty;
-        int sysfd;
 };
