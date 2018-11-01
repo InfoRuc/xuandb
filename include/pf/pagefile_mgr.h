@@ -1,6 +1,6 @@
 /*
  * File: pagefile_mgr.h
- * Description: Page file Manager, do basic operations for page file
+ * Description: Page file Manager interface
  * Author:
  * E-mail:
  *
@@ -8,12 +8,12 @@
 
 #pragma once
 
-class PF_BufferMgr;
+class BufferMgr;
 
 class PageFileMgr
 {
     private:
-        PF_BufferMgr *buffer_mgr_ptr;      // page buffer manager
+        BufferMgr *buffer_mgr_ptr;      // page buffer manager
     public:
         PageFileMgr();
         ~PageFileMgr();

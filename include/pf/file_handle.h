@@ -1,6 +1,6 @@
 /*
  * File: file_handle.h
- * Description: PF File interface
+ * Description: File handle interface
  * Author:
  * E-mail:
  *
@@ -13,12 +13,23 @@ struct FileHeader
     int file_id;
 }
 
-class PF_BufferMgr;
+class BufferMgr;
 
-class PF_FileHandle
+//
+// FileHdr: Header structure for files
+//
+struct PF_FileHdr {
+   int firstFree;     // first free page in the linked list
+   int numPages;      // # of pages in the file
+};
+
+//
+// PageFileHandle: PF File interface
+//
+class PageFileHandle
 {
     private:
-        PF_BufferMgr *buffer_mgr_ptr;
+        BufferMgr *buffer_mgr_ptr;
         FileHeader hdr;
         int file_open;
         int if_dirty;

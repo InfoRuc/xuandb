@@ -7,14 +7,14 @@
  */
 #pragma once
 
-class PF_PageHandle
+class PageHandle
 {
     private:
         int page_id;  // unique identifier of the page
         char *page_data_ptr;   // pointer to page data
     public:
-        PF_PageHandle();
-        ~PF_PageHandle();
+        PageHandle();
+        ~PageHandle();
         void getData(char *&data_prt) const;
         void getPageID(int pg_id) const;
 };

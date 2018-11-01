@@ -28,8 +28,6 @@ $ make
 
 Now you can get the binary file in MiniDB\/bin.
 
-**Node:** If you can get a binary file named 'demo' in MiniDB\/bin\/demo, it indicates your environment is normal.
-
 # License
 
 ![gplv3-logo](https://www.gnu.org/graphics/gplv3-127x51.png)
