@@ -6,6 +6,9 @@
  *
  */
 #include <cstring>
+#include <climits>
+#include <unistd.h>
+#include <sys/types.h>
 #include "pf/page_hashtable.h"
 #include "pf/buffer_mgr.h"
 #include "common.h"
@@ -74,7 +77,7 @@ void BufferMgr::usedListInsert(int slot)
 
 //////////////////////////////////////////////////////////////
 // Function: usedListRemove
-// Description: get a pointer to a page pinned in the buffer.
+// Description: 
 // Author: Liu Chaoyang
 // E-mail: chaoyanglius@gmail.com
 //////////////////////////////////////////////////////////////
@@ -99,14 +102,22 @@ void BufferMgr::usedListRemove(int slot)
 }
 
 //////////////////////////////////////////////////////////////
-// Function: usedListRemove
-// Description: get a pointer to a page pinned in the buffer.
+// Function: allocBufSlot
+// Description: allocate a buffer slot
 // Author: Liu Chaoyang
 // E-mail: chaoyanglius@gmail.com
 //////////////////////////////////////////////////////////////
-bool BufferMgr::internalAlloc(int &slot)
+bool BufferMgr::allocBufSlot(int &slot)
 {
+    if (free != -1)
+    {
+        slot = free;
+        free = buf_table[slot].next;
+    }
+    else
+    {
 
+    }
 }
 
 //////////////////////////////////////////////////////////////
@@ -132,7 +143,7 @@ bool BufferMgr::getPage(int fd, int page_id, char *&buffer_ptr, bool multi_pined
     else
     {
         // allocate an empty page and make it to MRU slot
-        if (!internalAlloc(slot))
+        if (!allocBufSlot(slot))
             return false;
         readPage(fd, page_id, buf_table[slot].data_ptr);
         page_ht.insert(fd, page_id, slot);
@@ -157,13 +168,15 @@ bool BufferMgr::allocatePage(int fd, int page_id, char *&buffer_ptr)
     int slot;
     bool found = page_ht.search(fd, page_id, slot);
 
+    // page is in buffer, failed
     if (!found)
         return false;
 
-    // page is in buffer
-    // allocate an empty page and make it to MRU slot
-    if (!internalAlloc(slot))
+    // allocate a slot in buffer pool
+    if (!allocBufSlot(slot))
         return false;
+
+    // insert page into page hash table
     page_ht.insert(fd, page_id, slot);
     initPageDesc(fd, page_id, slot);
 
@@ -247,7 +260,7 @@ bool BufferMgr::flushPages(int fd)
       int next = buf_table[slot].next;
 
       // If the page belongs to the passed-in file descriptor
-      if (buf_table[slot].sys_fd == fd)
+      if (buf_table[slot].fd == fd)
       {
          // ensure all pages are unpined
          if (!buf_table[slot].pin_count)
@@ -287,7 +300,7 @@ bool BufferMgr::forcePages(int fd, int page_id)
       int next = buf_table[slot].next;
 
       // If the page belongs to the passed-in file descriptor
-      if (buf_table[slot].sys_fd == fd && buf_table[slot].page_id == page_id)
+      if (buf_table[slot].fd == fd && buf_table[slot].page_id == page_id)
       {
          // just write it when it is dirty.
          if (buf_table[slot].if_dirty) 
@@ -318,7 +331,7 @@ bool BufferMgr::clearBuffer()
         next = buf_table[slot].next;
         if (buf_table[slot].pin_count == 0)
         {
-            page_ht.remove(buf_table[slot].sys_fd, buf_table[slot].page_id);
+            page_ht.remove(buf_table[slot].fd, buf_table[slot].page_id);
             usedListRemove(slot);
             freeListInsert(slot);
             slot = next;
@@ -327,8 +340,120 @@ bool BufferMgr::clearBuffer()
     return true;
 }
 
+///////////////////////////////////////////
+// NOT IMPLEMENTED AT PRESENT
+// ///////////////////////////////////////
 bool BufferMgr::resizeBuffer(int new_size)
 {
-
+    // TODO: resize buffer size
 }
 
+//////////////////////////////////////////////////////////////
+// Function: readPage
+// Description: read page from file(disk) to buffer
+// Author: Liu Chaoyang
+// E-mail: chaoyanglius@gmail.com
+//////////////////////////////////////////////////////////////
+bool BufferMgr::readPage(int fd, int page_id, char *dest)
+{
+    // seek the page place to read
+    long offset = page_id * page_size + PAGE_WHOLE_SIZE;
+    if (lseek(fd, offset, SEEK_SET) < 0)
+        return false;
+
+    // read data from file
+    int bytes_num = read(fd, dest, page_size);
+    if (bytes_num < page_size)
+        return false;
+
+    return true;
+}
+
+//////////////////////////////////////////////////////////////
+// Function: writePage
+// Description: write page to disk from buffer
+// Author: Liu Chaoyang
+// E-mail: chaoyanglius@gmail.com
+//////////////////////////////////////////////////////////////
+bool BufferMgr::writePage(int fd, int page_id, char *source)
+{
+    long offset = page_id * page_size + PAGE_WHOLE_SIZE;
+
+    if (lseek(fd, offset, SEEK_SET) < 0)
+        return false;
+
+    // write to file
+    int bytes_num = write(fd, source, page_size);
+    if (bytes_num < page_size)
+        return false;
+
+    return true;
+}
+
+//////////////////////////////////////////////////////////////
+// Function: initPageDesc
+// Description: init a newly-pinned page decription info
+// Author: Liu Chaoyang
+// E-mail: chaoyanglius@gmail.com
+//////////////////////////////////////////////////////////////
+void BufferMgr::initPageDesc(int fd, int page_id, int slot)
+{
+    buf_table[slot].fd = fd;
+    buf_table[slot].page_id = page_id;
+    buf_table[slot].if_dirty = false;
+    buf_table[slot].pin_count = 1;
+}
+
+//////////////////////////////////////////////////////////////
+// Function: allocateBlock
+// Description: allocate block for a page from buffer pool
+// Author: Liu Chaoyang
+// E-mail: chaoyanglius@gmail.com
+//////////////////////////////////////////////////////////////
+bool BufferMgr::allocateBlock(char *&buffer)
+{
+    // get an empty slot from the buffer pool
+    int slot;
+    if (!allocBufSlot(slot))
+        return false;
+
+    // generate a unique page id
+    // TODO: design a function to generate id for page
+    int page_id = (long)buf_table[slot].data_ptr % (long)INT_MAX;
+
+    if (!page_ht.insert(-1, page_id, slot))
+    {
+        usedListRemove(slot);
+        freeListInsert(slot);
+        return false;
+    }
+    else
+        initPageDesc(-1, page_id, slot);
+
+    // allocate block from buffer pool
+    buffer = buf_table[slot].data_ptr;
+
+    return true;
+}
+
+//////////////////////////////////////////////////////////////
+// Function: disposeBlock
+// Description: free the block from buffer pool by page_id
+// Author: Liu Chaoyang
+// E-mail: chaoyanglius@gmail.com
+//////////////////////////////////////////////////////////////
+bool BufferMgr::disposeBlock(int page_id)
+{
+    return unpinPage(-1, page_id);
+}
+
+//////////////////////////////////////////////////////////////
+// Function: getBlockSize
+// Description: get block size(=page size)
+// Author: Liu Chaoyang
+// E-mail: chaoyanglius@gmail.com
+//////////////////////////////////////////////////////////////
+void BufferMgr::getBlockSize(int &size) const
+{
+    size = page_size;
+}

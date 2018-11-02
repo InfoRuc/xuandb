@@ -6,8 +6,9 @@
  *
  */
 #pragma once
+// TODO: Not use system call for file read/write
+// To use C FILE or C++ fstream
 
-//
 // BufPage - struct containing data about a page in the buffer
 //
 struct BufPage
@@ -18,7 +19,7 @@ struct BufPage
     bool if_dirty;  // TRUE if page is dirty
     int pin_count;  // pin count
     int page_id;      // page number for this page
-    int sys_fd;     // OS file descriptor of this page
+    int fd;     // OS file descriptor of this page
 };
 
 class PageHashTable;
@@ -40,13 +41,13 @@ class BufferMgr
         void freeListInsert(int slot); // insert slot at head of free list
         void usedListInsert(int slot); // insert slot at head of used list
         void usedListRemove(int slot); // remove slot from used list
-        bool internalAlloc(int &slot); // get a slot to use
+        bool allocBufSlot(int &slot); // get a slot to use
         // read a page
         bool  readPage(int fd, int page_id, char *dest);
         // write a page
         bool  writePage(int fd, int page_id, char *source);
         // init the page desc entry
-        bool  initPageDesc (int fd, int page_id, int slot);
+        void initPageDesc (int fd, int page_id, int slot);
     public:
         BufferMgr(int pages_num);
         ~BufferMgr();
@@ -67,9 +68,9 @@ class BufferMgr
         // resize the buffer
         bool resizeBuffer(int new_size);
         // get size of block that can be allocated
-        bool getBlockSize(int &length) const;
+        void getBlockSize(int &size) const;
         // allocate a memory chunk that lives in buffer manager
         bool allocateBlock(char *&buffer);
         // dispose of a memory chunk managed by buffer manager
-        bool disposeBlock(char *buffer);
+        bool disposeBlock(int page_id);
 };
