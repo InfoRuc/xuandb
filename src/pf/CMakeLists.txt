@@ -1,4 +1,4 @@
-SET(pf_srcs pf_)
+SET(pf_srcs page_hashtable.cpp buffer_mgr.cpp)
 SET(MINIDB_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include)
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin/lib)
 
@@ -6,6 +6,6 @@ INCLUDE_DIRECTORIES(
     ${MINIDB_INCLUDE_DIRS}
 )
 
-# ADD_LIBRARY(pf STATIC ${pf_srcs})
+ADD_LIBRARY(pf STATIC ${pf_srcs})
 # ADD_LIBRARY(pf SHARED ${pf_srcs})
 
