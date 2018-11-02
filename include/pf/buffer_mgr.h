@@ -8,9 +8,9 @@
 #pragma once
 
 //
-// BufPageDesc - struct containing data about a page in the buffer
+// BufPage - struct containing data about a page in the buffer
 //
-struct BufPageDesc
+struct BufPage
 {
     char *data_ptr;     // page contents
     int next;       // next in the linked list of buffer pages
@@ -29,17 +29,18 @@ class PageHashTable;
 class BufferMgr
 {
     private:
-        BufPageDesc *buf_table;       // info on buffer pages
+        BufPage *buf_table;       // info on buffer pages
         PageHashTable page_ht;      // Hash table object
-        int page_id;             // number of pages in the buffer
-        int page_size;             // Size of pages in the buffer
-        int first;                // MRU page slot
-        int last;                 // LRU page slot
+        int page_num;             // number of pages in the buffer
+        int page_size;             // size of page in the buffer
+        int first;                // head of used list, used as MRU page slot
+        int last;                 // tail of used list, used as LRU page slot
         int free;                // head of free list
-        bool insertFree(int slot);     // Insert slot at head of free
-        bool linkHead(int slot);       // Insert slot at head of used
-        bool unlink(int slot);          // Unlink slot
-        bool internalAlloc(int &slot);      // Get a slot to use
+
+        void freeListInsert(int slot); // insert slot at head of free list
+        void usedListInsert(int slot); // insert slot at head of used list
+        void usedListRemove(int slot); // remove slot from used list
+        bool internalAlloc(int &slot); // get a slot to use
         // read a page
         bool  readPage(int fd, int page_id, char *dest);
         // write a page
@@ -47,7 +48,7 @@ class BufferMgr
         // init the page desc entry
         bool  initPageDesc (int fd, int page_id, int slot);
     public:
-        BufferMgr();
+        BufferMgr(int pages_num);
         ~BufferMgr();
         // get a page from buffer
         bool getPage(int sys_fd, int page_id, char *&buffer_ptr, bool multi_pined = true);

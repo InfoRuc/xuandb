@@ -5,44 +5,101 @@
  * E-mail:
  *
  */
+#include <cstring>
 #include "pf/page_hashtable.h"
 #include "pf/buffer_mgr.h"
+#include "common.h"
+
+BufferMgr::BufferMgr(int pg_num) : page_ht(), page_size(PAGE_DATA_SIZE), page_num(pg_num)
+{
+    // allocate memory for buffer page table
+    buf_table = new BufPage[page_num]; 
+    
+    // init buffer table
+    for (int i = 0; i < page_num; i++)
+    {
+        buf_table[i].data_ptr = new char[page_size];
+        // TODO: add codes to check if allocate success
+        memset((void *)buf_table[i].data_ptr, 0, page_size);
+        buf_table[i].prev = i - 1;
+        buf_table[i].next = i + 1;
+    }
+    buf_table[0].prev = buf_table[page_num - 1].next = -1;
+    free = 0;
+    first = last = -1;
+}
+
+BufferMgr::~BufferMgr()
+{
+    // free buffer pages and its table
+    for (int i = 0; i < page_num; i++)
+        delete [] buf_table[i].data_ptr;
+    delete [] buf_table;
+}
 
 //////////////////////////////////////////////////////////////
-// Function: insertFree
+// Function: freeListInsert
 // Description: get a pointer to a page pinned in the buffer.
 // Author: Liu Chaoyang
 // E-mail: chaoyanglius@gmail.com
 //////////////////////////////////////////////////////////////
-bool BufferMgr::insertFree(int slot)
+void BufferMgr::freeListInsert(int slot)
 {
-
+    buf_table[slot].next = free;
+    free = slot;
 }
 
 //////////////////////////////////////////////////////////////
-// Function: linkHead
+// Function: usedListInsert
 // Description: get a pointer to a page pinned in the buffer.
 // Author: Liu Chaoyang
 // E-mail: chaoyanglius@gmail.com
 //////////////////////////////////////////////////////////////
-bool BufferMgr::linkHead(int slot)
+void BufferMgr::usedListInsert(int slot)
 {
+    buf_table[slot].next = first;
+    // make prev point to invalid slot
+    buf_table[slot].prev = -1;
+    
+    // when list is not empty
+    if (first != -1)
+        buf_table[first].prev = slot;
 
+    first = slot;
+
+    // when list is empty
+    if (last == -1)
+        last = first;
 }
 
 //////////////////////////////////////////////////////////////
-// Function: unlink
+// Function: usedListRemove
 // Description: get a pointer to a page pinned in the buffer.
 // Author: Liu Chaoyang
 // E-mail: chaoyanglius@gmail.com
 //////////////////////////////////////////////////////////////
-bool BufferMgr::unlink(int slot)
+void BufferMgr::usedListRemove(int slot)
 {
+    // if slot is at head of list
+    if (first == slot)
+        first = buf_table[slot].next;
+    // if slot is at end of list
+    if (last == slot)
+        last = buf_table[slot].prev;
+    // if slot is not at end of list
+    if (buf_table[slot].next != -1)
+        buf_table[buf_table[slot].next].prev = buf_table[slot].prev;
+    
+    // if slot is not at head of list
+    if (buf_table[slot].prev != -1)
+        buf_table[buf_table[slot].prev].next = buf_table[slot].next;
 
+    // Set next and prev pointers of slot entry
+    buf_table[slot].prev = buf_table[slot].next = -1;
 }
 
 //////////////////////////////////////////////////////////////
-// Function: unlink
+// Function: usedListRemove
 // Description: get a pointer to a page pinned in the buffer.
 // Author: Liu Chaoyang
 // E-mail: chaoyanglius@gmail.com
@@ -66,10 +123,10 @@ bool BufferMgr::getPage(int fd, int page_id, char *&buffer_ptr, bool multi_pined
     // page is in buffer
     if (!found)
     {
-        buf_table->pin_count++;
+        buf_table[slot].pin_count++;
         // make the page the mostly recently used
-        if (!unlink(slot) || !linkHead(slot))
-            return false;
+        usedListRemove(slot);
+        usedListInsert(slot);
     }
     // page is not in buffer
     else
@@ -82,8 +139,8 @@ bool BufferMgr::getPage(int fd, int page_id, char *&buffer_ptr, bool multi_pined
         initPageDesc(fd, page_id, slot);
 
         // put the slot on the free list
-        unlink(slot);
-        insertFree(slot);
+        usedListRemove(slot);
+        freeListInsert(slot);
     }
     buffer_ptr = buf_table[slot].data_ptr;
     return true;
@@ -111,8 +168,8 @@ bool BufferMgr::allocatePage(int fd, int page_id, char *&buffer_ptr)
     initPageDesc(fd, page_id, slot);
 
     // put the slot on the free list
-    unlink(slot);
-    insertFree(slot);
+    usedListRemove(slot);
+    freeListInsert(slot);
     buffer_ptr = buf_table[slot].data_ptr;
     return true;
 }
@@ -140,8 +197,8 @@ bool BufferMgr::markDirty(int fd, int page_id)
     buf_table[slot].if_dirty = true;
     
     // make the page the MRU page
-    unlink(slot);
-    linkHead(slot);
+    usedListRemove(slot);
+    usedListInsert(slot);
     
     return true;
 }
@@ -168,8 +225,8 @@ bool BufferMgr::unpinPage(int fd, int page_id)
     // if is last pin, make it MRU page
     if ((buf_table[slot].pin_count - 1) == 0)
     {
-        unlink(slot);
-        linkHead(slot);
+        usedListRemove(slot);
+        usedListInsert(slot);
     }
     return true;
 }
@@ -202,8 +259,8 @@ bool BufferMgr::flushPages(int fd)
                 buf_table[slot].if_dirty = false;
              }
              page_ht.remove(fd, buf_table[slot].page_id);
-             unlink(slot);
-             insertFree(slot);
+             usedListRemove(slot);
+             freeListInsert(slot);
          }
          else
          {
@@ -262,10 +319,16 @@ bool BufferMgr::clearBuffer()
         if (buf_table[slot].pin_count == 0)
         {
             page_ht.remove(buf_table[slot].sys_fd, buf_table[slot].page_id);
-            unlink(slot);
-            insertFree(slot);
+            usedListRemove(slot);
+            freeListInsert(slot);
             slot = next;
         }
     }
     return true;
 }
+
+bool BufferMgr::resizeBuffer(int new_size)
+{
+
+}
+
