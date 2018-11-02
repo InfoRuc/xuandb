@@ -9,19 +9,11 @@
 
 struct FileHeader
 {
-    int free_page;
-    int file_id;
-}
+    int first_free;
+    int pages_num;
+};
 
 class BufferMgr;
-
-//
-// FileHdr: Header structure for files
-//
-struct PF_FileHdr {
-   int firstFree;     // first free page in the linked list
-   int numPages;      // number of pages in the file
-};
 
 //
 // PageFileHandle: PF File interface
@@ -29,31 +21,31 @@ struct PF_FileHdr {
 class PageFileHandle
 {
     private:
-        BufferMgr *buffer_mgr_ptr;
+        BufferMgr *buffer_mgr;
         FileHeader hdr;
-        bool if_open;
-        bool if_dirty;
+        bool file_open;
+        bool hdr_changed;
         int sys_fd;
     public:
         PageFileHandle();
         // copy constructor
-        PageFileHandle::PageFileHandle(const PageFileHandle &file_handle)
+        PageFileHandle(const PageFileHandle &file_handle);
         // assignment of PageFileHandle by overload '='
         PageFileHandle& operator=(const PageFileHandle &file_handle);
-        ~PF_FileHandle();
+        ~PageFileHandle();
         // 
-        bool getFirstPage(PageHandle &page_handle) const;
-        bool getNextPage(int cur_pg_id, PageHandle &page_handle) const;
-        bool getPrevPage(int cur_pg_id, PageHandle &page_handle) const;
+        bool getFirstPage(PageHandle &page_handle);
+        bool getNextPage(int cur_pg_id, PageHandle &page_handle);
+        bool getPrevPage(int cur_pg_id, PageHandle &page_handle);
         // get a page by its id and get its handle
-        bool getThisPage(int pg_id, PageHandle &page_handle) const;
-        bool getLastPage(PageHandle &page_handle) const;
+        bool getThisPage(int pg_id, PageHandle &page_handle);
+        bool getLastPage(PageHandle &page_handle);
         bool allocatePage(PageHandle &page_handle);
         bool disposePage(int pg_id);
         bool markDirty(int pg_id);
         bool unpinPage(int pg_id);
         // Flush pages into disk from buffer pool
-        bool flushPages() const;
+        bool flushPages();
         // Write a page or pages to disk, but do not remove from buffer pool
-        bool writePages(int pg_id = -1);    // '-1' means all pages
+        bool forcePages(int pg_id = -1);    // '-1' means all pages
 };

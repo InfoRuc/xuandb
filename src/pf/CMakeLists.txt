@@ -1,4 +1,4 @@
-SET(pf_srcs page_hashtable.cpp buffer_mgr.cpp)
+SET(pf_srcs page_hashtable.cpp buffer_mgr.cpp page_handle.cpp file_handle.cpp)
 SET(MINIDB_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include)
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin/lib)
 

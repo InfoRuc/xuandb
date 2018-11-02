@@ -6,6 +6,8 @@
  *
  */
 #pragma once
+
+#include "pf/page_hashtable.h"
 // TODO: Not use system call for file read/write
 // To use C FILE or C++ fstream
 
@@ -22,7 +24,6 @@ struct BufPage
     int fd;     // OS file descriptor of this page
 };
 
-class PageHashTable;
 //
 // BufferMgr
 // manageing the page buffer

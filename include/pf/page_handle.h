@@ -7,8 +7,26 @@
  */
 #pragma once
 
+#define PAGE_LIST_END -1
+#define PAGE_USED -2
+
+typedef int PageHdr ;
+//////////////// Page Structure ///////////////////
+//     ________________
+//    |___page header__| 4 Bytes
+//    |                |
+//    |                |
+//    |      data      | 4092 Bytes
+//    |                |
+//    |                |
+//    |________________|
+///////////////////////////////////////////////////
+
+class PageFileHandle;
+
 class PageHandle
 {
+    friend class PageFileHandle;
     private:
         int page_id;  // unique identifier of the page
         char *page_data_ptr;   // pointer to page data
@@ -16,6 +34,6 @@ class PageHandle
         PageHandle();
         PageHandle(const PageHandle &page_handle);
         ~PageHandle();
-        void getData(char *&data_prt) const;     // get page contents by pointer
-        void getPageID(int &pg_id) const;    // get page id
+        bool getData(char *&data_prt) const;     // get page contents by pointer
+        bool getPageID(int &pg_id) const;    // get page id
 };

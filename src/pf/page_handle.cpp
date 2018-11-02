@@ -5,13 +5,18 @@
  * E-mail: chaoyanglius@gmail.com
  *
  */
-#include "page_handle.h"
+#include <cstdio>
+#include <iostream>
+#include "pf/page_handle.h"
+
+using std::cout;
+using std::endl;
 
 PageHandle::PageHandle()
 {
     // -1 means invalid page
     page_id = -1;
-    page_data_ptr = nullptr;
+    page_data_ptr = NULL;
 }
 
 PageHandle::PageHandle(const PageHandle &page_handle)
@@ -24,34 +29,28 @@ PageHandle::~PageHandle()
 {
 }
 
-void PageHandle::getData(char *&data_ptr) const
+bool PageHandle::getData(char *&data_ptr) const
 {
-    data_ptr = nullptr;
+    data_ptr = NULL;
     // page can not be null
-    if (page_data_ptr == nullptr)
+    if (page_data_ptr == NULL)
     {
         cout << "Error: page not in memory!" << endl;
-        exit(EXIT_FAILURE);
+        return false;
     }
 
     data_ptr = page_data_ptr;
 }
 
-void PageHandle::getPageID(int &pg_id)
+bool PageHandle::getPageID(int &pg_id) const
 {
     pg_id = -1; 
     // page can not be null
-    if (page_data_ptr == nullptr)
+    if (page_data_ptr == NULL)
     {
         cout << "Error: page not in memory!" << endl;
-        exit(EXIT_FAILURE);
+        return false;
     }
     pg_id = page_id;
 }
-
-
-
-
-
-
 

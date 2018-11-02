@@ -9,7 +9,6 @@
 #include <climits>
 #include <unistd.h>
 #include <sys/types.h>
-#include "pf/page_hashtable.h"
 #include "pf/buffer_mgr.h"
 #include "common.h"
 
@@ -116,8 +115,35 @@ bool BufferMgr::allocBufSlot(int &slot)
     }
     else
     {
+        // find the LRU and unpinned page
+        for (slot = last; slot != -1; slot = buf_table[slot].prev)
+        {
+            if (buf_table[slot].pin_count == 0)
+                break;
+        }
+        
+        // return false if pages are unpined
+        if (slot == -1)
+            return false;
 
+        // write page to disk if is dirty
+        if (buf_table[slot].if_dirty)
+        {
+            if (!writePage(buf_table[slot].fd, buf_table[slot].page_id, buf_table[slot].data_ptr))
+                return false;
+            buf_table[slot].if_dirty = false;
+        }
+
+        // remove page from the hash table and slot from used list
+        if (!page_ht.remove(buf_table[slot].fd, buf_table[slot].page_id))
+            return false;
+        else
+            usedListRemove(slot);
     }
+    // insert slot at the head of the used list
+    usedListInsert(slot);
+
+    return true;
 }
 
 //////////////////////////////////////////////////////////////
@@ -132,8 +158,11 @@ bool BufferMgr::getPage(int fd, int page_id, char *&buffer_ptr, bool multi_pined
     bool found = page_ht.search(fd, page_id, slot);
 
     // page is in buffer
-    if (!found)
+    if (found)
     {
+#ifdef DEBUG
+        cout << "Debug:Page is found in buffer." << endl;
+#endif
         buf_table[slot].pin_count++;
         // make the page the mostly recently used
         usedListRemove(slot);
@@ -142,6 +171,10 @@ bool BufferMgr::getPage(int fd, int page_id, char *&buffer_ptr, bool multi_pined
     // page is not in buffer
     else
     {
+#ifdef DEBUG
+        cout << "Debug:Page is not found in buffer." << endl;
+        cout << "Debug: Loading page from disk..." << endl;
+#endif
         // allocate an empty page and make it to MRU slot
         if (!allocBufSlot(slot))
             return false;
@@ -152,6 +185,9 @@ bool BufferMgr::getPage(int fd, int page_id, char *&buffer_ptr, bool multi_pined
         // put the slot on the free list
         usedListRemove(slot);
         freeListInsert(slot);
+#ifdef DEBUG
+        cout << "Debug:Page loading success." << endl;
+#endif
     }
     buffer_ptr = buf_table[slot].data_ptr;
     return true;
