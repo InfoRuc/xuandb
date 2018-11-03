@@ -7,7 +7,7 @@
  */
 #pragma once
 
-#include "pf/page_hashtable.h"
+#include "sm/page_hashtable.h"
 // TODO: Not use system call for file read/write
 // To use C FILE or C++ fstream
 

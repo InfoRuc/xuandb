@@ -1,8 +1,8 @@
 /*
- * File: file_handle.h
+ * File: storage_mgr.h
  * Description: File handle interface
- * Author:
- * E-mail:
+ * Author: Liu Chaoyang
+ * E-mail: chaoyanglius@gmail.com
  *
  */
 #pragma once
@@ -16,24 +16,26 @@ struct FileHeader
 class BufferMgr;
 
 //
-// PageFileHandle: PF File interface
+// Class: StorageMgr
+// Description: manage disk and buffer. Using a big file to storage all record.
+// Author: Liu Chaoyang
+// E-mail: chaoyanglius@gmail.com
 //
-class PageFileHandle
+class StorageMgr
 {
     private:
-        BufferMgr *buffer_mgr;
         FileHeader hdr;
         bool file_open;
         bool hdr_changed;
         int sys_fd;
+        BufferMgr *buffer_mgr;
     public:
-        PageFileHandle();
+        StorageMgr();
         // copy constructor
-        PageFileHandle(const PageFileHandle &file_handle);
-        // assignment of PageFileHandle by overload '='
-        PageFileHandle& operator=(const PageFileHandle &file_handle);
-        ~PageFileHandle();
-        // 
+        StorageMgr(const StorageMgr &storage_mgr);
+        // assignment of StorageMgr by overload '='
+        StorageMgr& operator=(const StorageMgr &storage_mgr);
+        ~StorageMgr();
         bool getFirstPage(PageHandle &page_handle);
         bool getNextPage(int cur_pg_id, PageHandle &page_handle);
         bool getPrevPage(int cur_pg_id, PageHandle &page_handle);

@@ -9,7 +9,7 @@
 #include <climits>
 #include <unistd.h>
 #include <sys/types.h>
-#include "pf/buffer_mgr.h"
+#include "sm/buffer_mgr.h"
 #include "common.h"
 
 BufferMgr::BufferMgr(int pg_num) : page_ht(), page_size(PAGE_DATA_SIZE), page_num(pg_num)

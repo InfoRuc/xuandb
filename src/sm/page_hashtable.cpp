@@ -6,7 +6,7 @@
  *
  */
 #include <iostream>
-#include "pf/page_hashtable.h"
+#include "sm/page_hashtable.h"
 
 using std::cout;
 using std::endl;

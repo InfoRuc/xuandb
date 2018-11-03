@@ -22,11 +22,11 @@ typedef int PageHdr ;
 //    |________________|
 ///////////////////////////////////////////////////
 
-class PageFileHandle;
+class StorageMgr;
 
 class PageHandle
 {
-    friend class PageFileHandle;
+    friend class StorageMgr;
     private:
         int page_id;  // unique identifier of the page
         char *page_data_ptr;   // pointer to page data

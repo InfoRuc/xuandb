@@ -7,7 +7,7 @@
  */
 #include <cstdio>
 #include <iostream>
-#include "pf/page_handle.h"
+#include "sm/page_handle.h"
 
 using std::cout;
 using std::endl;

@@ -1,5 +1,5 @@
 /*
- * File: file_handle.cpp
+ * File: storage_mgr.cpp
  * Description: File handle implemention
  * Author:
  * E-mail:
@@ -10,41 +10,41 @@
 #include <cstring>
 #include <iostream>
 #include "common.h"
-#include "pf/page_handle.h"
-#include "pf/file_handle.h"
-#include "pf/buffer_mgr.h"
-#include "pf/page_hashtable.h"
+#include "sm/page_handle.h"
+#include "sm/storage_mgr.h"
+#include "sm/buffer_mgr.h"
+#include "sm/page_hashtable.h"
 
 using std::cout;
 using std::endl;
 
-PageFileHandle::PageFileHandle()
+StorageMgr::StorageMgr()
 {
     buffer_mgr = NULL;
     file_open = false;
 }
 
-PageFileHandle::PageFileHandle(const PageFileHandle &file_handle)
+StorageMgr::StorageMgr(const StorageMgr &storage_mgr)
 {
-    buffer_mgr = file_handle.buffer_mgr;
-    hdr = file_handle.hdr;
-    file_open = file_handle.file_open;
-    hdr_changed = file_handle.hdr_changed;
-    sys_fd = file_handle.sys_fd;
+    buffer_mgr = storage_mgr.buffer_mgr;
+    hdr = storage_mgr.hdr;
+    file_open = storage_mgr.file_open;
+    hdr_changed = storage_mgr.hdr_changed;
+    sys_fd = storage_mgr.sys_fd;
 }
 
-PageFileHandle& PageFileHandle::operator=(const PageFileHandle &file_handle)
+StorageMgr& StorageMgr::operator=(const StorageMgr &storage_mgr)
 {
-    buffer_mgr = file_handle.buffer_mgr;
-    hdr = file_handle.hdr;
-    file_open = file_handle.file_open;
-    hdr_changed = file_handle.hdr_changed;
-    sys_fd = file_handle.sys_fd;
+    buffer_mgr = storage_mgr.buffer_mgr;
+    hdr = storage_mgr.hdr;
+    file_open = storage_mgr.file_open;
+    hdr_changed = storage_mgr.hdr_changed;
+    sys_fd = storage_mgr.sys_fd;
 
     return *this;
 }
 
-bool PageFileHandle::getThisPage(int page_id, PageHandle &page_handle) 
+bool StorageMgr::getThisPage(int page_id, PageHandle &page_handle) 
 {
     char *page_buf_ptr;
     if (!file_open)
@@ -80,17 +80,17 @@ bool PageFileHandle::getThisPage(int page_id, PageHandle &page_handle)
     return false;
 }
 
-bool PageFileHandle::getFirstPage(PageHandle &page_handle) 
+bool StorageMgr::getFirstPage(PageHandle &page_handle) 
 {
     return getNextPage(-1, page_handle);
 }
 
-bool PageFileHandle::getLastPage(PageHandle &page_handle) 
+bool StorageMgr::getLastPage(PageHandle &page_handle) 
 {
     return getPrevPage(hdr.pages_num, page_handle);
 }
 
-bool PageFileHandle::getNextPage(int cur_pg_id, PageHandle &page_handle) 
+bool StorageMgr::getNextPage(int cur_pg_id, PageHandle &page_handle) 
 {
     // file must be open
     if (!file_open)    
@@ -126,7 +126,7 @@ bool PageFileHandle::getNextPage(int cur_pg_id, PageHandle &page_handle)
     return false;
 }
 
-bool PageFileHandle::getPrevPage(int cur_pg_id, PageHandle &page_handle) 
+bool StorageMgr::getPrevPage(int cur_pg_id, PageHandle &page_handle) 
 {
     // file must be open
     if (!file_open)    
@@ -158,7 +158,7 @@ bool PageFileHandle::getPrevPage(int cur_pg_id, PageHandle &page_handle)
     return false;
 }
 
-bool PageFileHandle::disposePage(int page_id)
+bool StorageMgr::disposePage(int page_id)
 {
     char *page_buf_ptr;
 
@@ -205,7 +205,7 @@ bool PageFileHandle::disposePage(int page_id)
     return true;
 }
 
-bool PageFileHandle::allocatePage(PageHandle &page_handle)
+bool StorageMgr::allocatePage(PageHandle &page_handle)
 {
     int page_id;    // new page id
     char *page_buf_ptr;
@@ -257,7 +257,7 @@ bool PageFileHandle::allocatePage(PageHandle &page_handle)
     return true;
 }
 
-bool PageFileHandle::markDirty(int page_id)
+bool StorageMgr::markDirty(int page_id)
 {
     // file must be open
     if (!file_open)
@@ -275,7 +275,7 @@ bool PageFileHandle::markDirty(int page_id)
     return buffer_mgr->markDirty(sys_fd, page_id);
 }
 
-bool PageFileHandle::unpinPage(int page_id)
+bool StorageMgr::unpinPage(int page_id)
 {
     // file must be open
     if (!file_open)
@@ -293,7 +293,7 @@ bool PageFileHandle::unpinPage(int page_id)
     return buffer_mgr->unpinPage(sys_fd, page_id);
 }
 
-bool PageFileHandle::flushPages() 
+bool StorageMgr::flushPages() 
 {
     // file must be open
     if (!file_open)
@@ -320,7 +320,7 @@ bool PageFileHandle::flushPages()
     return buffer_mgr->flushPages(sys_fd);
 }
 
-bool PageFileHandle::forcePages(int page_id)    
+bool StorageMgr::forcePages(int page_id)    
 {
     // file must be open
     if (!file_open)
