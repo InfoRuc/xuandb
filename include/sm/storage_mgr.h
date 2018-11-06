@@ -14,7 +14,7 @@ struct FileHeader
 };
 
 class BufferMgr;
-
+class PageHandle;
 //
 // Class: StorageMgr
 // Description: manage disk and buffer. Using a big file to storage all record.
@@ -36,6 +36,7 @@ class StorageMgr
         // assignment of StorageMgr by overload '='
         StorageMgr& operator=(const StorageMgr &storage_mgr);
         ~StorageMgr();
+        bool initSM(const char *file_name);
         bool getFirstPage(PageHandle &page_handle);
         bool getNextPage(int cur_pg_id, PageHandle &page_handle);
         bool getPrevPage(int cur_pg_id, PageHandle &page_handle);
@@ -49,5 +50,5 @@ class StorageMgr
         // Flush pages into disk from buffer pool
         bool flushPages();
         // Write a page or pages to disk, but do not remove from buffer pool
-        bool forcePages(int pg_id = -1);    // '-1' means all pages
+        bool forcePage(int pg_id = -1);    // '-1' means all pages
 };

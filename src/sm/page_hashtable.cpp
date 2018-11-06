@@ -89,7 +89,6 @@ bool PageHashTable::insert(int fd, int page_id, int slot)
     {
         if (cur->fd == fd && cur->page_id == page_id)
         {
-            slot = cur->slot;
             cout << "Error: insert failed because of page has existed!" << endl;
             return false;
         }

@@ -7,12 +7,17 @@
  */
 #include <cstring>
 #include <climits>
+#include <cstdio>
+#include <iostream>
 #include <unistd.h>
 #include <sys/types.h>
 #include "sm/buffer_mgr.h"
 #include "common.h"
 
-BufferMgr::BufferMgr(int pg_num) : page_ht(), page_size(PAGE_DATA_SIZE), page_num(pg_num)
+using std::cout;
+using std::endl;
+
+BufferMgr::BufferMgr(int pg_num) : page_ht(), page_size(PAGE_WHOLE_SIZE), page_num(pg_num)
 {
     // allocate memory for buffer page table
     buf_table = new BufPage[page_num]; 
@@ -23,11 +28,14 @@ BufferMgr::BufferMgr(int pg_num) : page_ht(), page_size(PAGE_DATA_SIZE), page_nu
         buf_table[i].data_ptr = new char[page_size];
         // TODO: add codes to check if allocate success
         memset((void *)buf_table[i].data_ptr, 0, page_size);
+        // init the free page list, and free page list is full
         buf_table[i].prev = i - 1;
         buf_table[i].next = i + 1;
     }
     buf_table[0].prev = buf_table[page_num - 1].next = -1;
+    // make free list head to first page
     free = 0;
+    // used list is empty
     first = last = -1;
 }
 
@@ -155,13 +163,13 @@ bool BufferMgr::allocBufSlot(int &slot)
 bool BufferMgr::getPage(int fd, int page_id, char *&buffer_ptr, bool multi_pined)
 {
     int slot;
+    // search in buffer pool
     bool found = page_ht.search(fd, page_id, slot);
-
     // page is in buffer
     if (found)
     {
 #ifdef DEBUG
-        cout << "Debug:Page is found in buffer." << endl;
+        cout << "[BufferMgr Debug]: Page #"<< page_id << " is found in buffer." << endl;
 #endif
         buf_table[slot].pin_count++;
         // make the page the mostly recently used
@@ -172,23 +180,34 @@ bool BufferMgr::getPage(int fd, int page_id, char *&buffer_ptr, bool multi_pined
     else
     {
 #ifdef DEBUG
-        cout << "Debug:Page is not found in buffer." << endl;
-        cout << "Debug: Loading page from disk..." << endl;
+        cout << "[BufferMgr Debug]: Page #"<< page_id << " is not found in buffer." << endl;
+        cout << "[BufferMgr Debug]: Loading page #" << page_id << " from disk..." << endl;
 #endif
         // allocate an empty page and make it to MRU slot
         if (!allocBufSlot(slot))
+        {
+            cout << "[BufferMgr Error]: " << "Buffer pool full and no free page to exchange!" << endl;
             return false;
-        readPage(fd, page_id, buf_table[slot].data_ptr);
-        page_ht.insert(fd, page_id, slot);
-        initPageDesc(fd, page_id, slot);
+        }
 
-        // put the slot on the free list
-        usedListRemove(slot);
-        freeListInsert(slot);
+        // init the page and pin the page
+        initPageDesc(fd, page_id, slot);
+        // read page from disk
+        if (!readPage(fd, page_id, buf_table[slot].data_ptr) || 
+            // insert page to buffer pool
+            !page_ht.insert(fd, page_id, slot))
+        {
+            // read page failed, put the slot on the free list
+            usedListRemove(slot);
+            freeListInsert(slot);
+            cout << "[BufferMgr Error]: Page #" << page_id << " loading failed!" << endl;
+            return false;
+        }
 #ifdef DEBUG
-        cout << "Debug:Page loading success." << endl;
+        cout << "[BufferMgr Debug]: Page #" << page_id << " loading succeeded." << endl;
 #endif
     }
+    // get data pointer to its position in buffer pool
     buffer_ptr = buf_table[slot].data_ptr;
     return true;
 }
@@ -236,11 +255,17 @@ bool BufferMgr::markDirty(int fd, int page_id)
     bool found = page_ht.search(fd, page_id, slot);
 
     if (!found)
+    {
+        cout << "[BufferMgr Error]: " << "#" << page_id << " is not in buffer!" << endl;
         return false;
+    }
     
     // page unpin
     if (buf_table[slot].pin_count == 0)
+    {
+        cout << "[BufferMgr Error]: " << "#" << page_id << " has been unpined!" << endl;
         return false;
+    }
     
     // mark the page dirty
     buf_table[slot].if_dirty = true;
@@ -265,14 +290,21 @@ bool BufferMgr::unpinPage(int fd, int page_id)
     bool found = page_ht.search(fd, page_id, slot);
 
     if (!found)
+    {
+        cout << "[BufferMgr Error]: " << "#" << page_id << " is not in buffer!" << endl;
         return false;
+    }
 
     // page unpin
     if (buf_table[slot].pin_count == 0)
+    {
+        cout << "[BufferMgr Error]: " << "#" << page_id << " has been unpined!" << endl;
         return false;
+    }
 
     // if is last pin, make it MRU page
-    if ((buf_table[slot].pin_count - 1) == 0)
+    buf_table[slot].pin_count--;
+    if ((buf_table[slot].pin_count) == 0)
     {
         usedListRemove(slot);
         usedListInsert(slot);
@@ -304,7 +336,15 @@ bool BufferMgr::flushPages(int fd)
              // only if page is dirty do write to disk
              if (buf_table[slot].if_dirty)
              {
-                writePage(fd, buf_table[slot].page_id, buf_table[slot].data_ptr);
+#ifdef DEBUG
+                cout << "[BufferMgr Debug]: #" << buf_table[slot].page_id << " page is dirty." << endl;
+                cout << "[BufferMgr Debug]: Writing #" << buf_table[slot].page_id << " page..." << endl;
+#endif 
+                if (!writePage(fd, buf_table[slot].page_id, buf_table[slot].data_ptr))
+                {
+                    cout << "[BufferMgr Error]: " << "Writing #" << buf_table[slot].page_id << " page failed!" << endl;
+                    return false;
+                }
                 buf_table[slot].if_dirty = false;
              }
              page_ht.remove(fd, buf_table[slot].page_id);
@@ -313,8 +353,15 @@ bool BufferMgr::flushPages(int fd)
          }
          else
          {
-             return false;
+#ifdef DEBUG
+            cout << "[BufferMgr Debug]: "<< "#" << buf_table[slot].page_id << " page are pinned." << endl;
+#endif 
          }
+      }
+      else
+      {
+         cout << "[BufferMgr Error]: " << "Wrong file decriptor!" << endl;
+         return false;
       }
       slot = next;
    }
@@ -323,12 +370,12 @@ bool BufferMgr::flushPages(int fd)
 
 //////////////////////////////////////////////////////////////
 // Function: clearBuffer
-// Description: mark a page dirty so that it must be written
+// Description: wrong
 // back to disk
 // Author: Liu Chaoyang
 // E-mail: chaoyanglius@gmail.com
 //////////////////////////////////////////////////////////////
-bool BufferMgr::forcePages(int fd, int page_id)
+bool BufferMgr::forcePage(int fd, int page_id)
 {
     int slot = first;
     while (slot != -1)
@@ -341,7 +388,15 @@ bool BufferMgr::forcePages(int fd, int page_id)
          // just write it when it is dirty.
          if (buf_table[slot].if_dirty) 
          {
-            writePage(fd, buf_table[slot].page_id, buf_table[slot].data_ptr);
+#ifdef DEBUG
+            cout << "[BufferMgr Debug]: #" << page_id << " page is dirty." << endl;
+            cout << "[BufferMgr Debug]: Writing #" << page_id << " page..." << endl;
+#endif
+            if (!writePage(fd, buf_table[slot].page_id, buf_table[slot].data_ptr))
+            {
+                cout << "[BufferMgr Error]: " << "Writing #" << page_id << " page failed!" << endl;
+                return false;
+            }
             buf_table[slot].if_dirty = false;
          }
       }
@@ -367,7 +422,9 @@ bool BufferMgr::clearBuffer()
         next = buf_table[slot].next;
         if (buf_table[slot].pin_count == 0)
         {
+            // remove all pages in buffer pool
             page_ht.remove(buf_table[slot].fd, buf_table[slot].page_id);
+            // make all pages into free list
             usedListRemove(slot);
             freeListInsert(slot);
             slot = next;
@@ -393,14 +450,36 @@ bool BufferMgr::resizeBuffer(int new_size)
 bool BufferMgr::readPage(int fd, int page_id, char *dest)
 {
     // seek the page place to read
-    long offset = page_id * page_size + PAGE_WHOLE_SIZE;
+    long offset = page_id * page_size + FILE_HEADER_SIZE;
     if (lseek(fd, offset, SEEK_SET) < 0)
+    {
+        cout << "[BufferMgr Error]: Seek page failed." << endl;
         return false;
+    }
 
     // read data from file
     int bytes_num = read(fd, dest, page_size);
-    if (bytes_num < page_size)
+#ifdef DEBUG
+    cout << "[BufferMgr Debug]: Reading #" << page_id << " page..." << endl;
+    cout << "[BufferMgr Debug]: Trying to read " << page_size << " bytes data..." << endl;
+#endif
+    if (bytes_num == -1)
+    {
+        perror("[BufferMgr Error]: Read page error");
         return false;
+    }
+
+    if (bytes_num == 0)
+    {
+        cout << "[BufferMgr Error]: Read arrived to EOF!" << endl;
+        return false;
+    }
+
+    if (bytes_num < page_size)
+    {
+        cout << "[BufferMgr Error]: Read incomplete page only " << bytes_num << " bytes!"<< endl;
+        return false;
+    }
 
     return true;
 }

@@ -7,6 +7,8 @@
  */
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <cstring>
 #include <iostream>
 #include "common.h"
@@ -20,8 +22,13 @@ using std::endl;
 
 StorageMgr::StorageMgr()
 {
-    buffer_mgr = NULL;
+    buffer_mgr = new BufferMgr(PAGE_BUFFER_SIZE);
     file_open = false;
+}
+
+StorageMgr::~StorageMgr()
+{
+    delete buffer_mgr;
 }
 
 StorageMgr::StorageMgr(const StorageMgr &storage_mgr)
@@ -42,6 +49,42 @@ StorageMgr& StorageMgr::operator=(const StorageMgr &storage_mgr)
     sys_fd = storage_mgr.sys_fd;
 
     return *this;
+}
+
+bool StorageMgr::initSM(const char *file_name)
+{
+    int sys_fd = -1;
+
+    // init file header
+    hdr.first_free = -1;
+    hdr.pages_num = 0;
+    sys_fd = open(file_name, O_CREAT | O_EXCL | O_WRONLY, 0600);
+    if (sys_fd < 0)
+    {
+        cout << "Error: open file failed!" << endl;
+        return false;
+    }
+    int file_header_size = 4096;
+    char file_header[file_header_size];
+
+    memset(file_header, 0, file_header_size);
+    FileHeader* hdr_buf = (FileHeader*)file_header;
+    hdr_buf->first_free = hdr.first_free;
+    hdr_buf->pages_num = hdr.pages_num;
+
+    int bytes_num = write(sys_fd, hdr_buf, file_header_size);
+
+    if (bytes_num != file_header_size)
+    {
+        cout << "Error: write file header failed" << endl;
+        close(sys_fd);
+        return false;
+    }
+    
+    hdr_changed = false;
+    file_open = true;
+
+    return true;
 }
 
 bool StorageMgr::getThisPage(int page_id, PageHandle &page_handle) 
@@ -320,7 +363,7 @@ bool StorageMgr::flushPages()
     return buffer_mgr->flushPages(sys_fd);
 }
 
-bool StorageMgr::forcePages(int page_id)    
+bool StorageMgr::forcePage(int page_id)    
 {
     // file must be open
     if (!file_open)
@@ -344,5 +387,5 @@ bool StorageMgr::forcePages(int page_id)
         hdr_changed = false;
     }
 
-    return buffer_mgr->forcePages(sys_fd, page_id);
+    return buffer_mgr->forcePage(sys_fd, page_id);
 }

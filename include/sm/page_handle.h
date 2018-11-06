@@ -10,7 +10,7 @@
 #define PAGE_LIST_END -1
 #define PAGE_USED -2
 
-typedef int PageHdr ;
+typedef int PageHdr;
 //////////////// Page Structure ///////////////////
 //     ________________
 //    |___page header__| 4 Bytes

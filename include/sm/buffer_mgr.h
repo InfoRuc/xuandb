@@ -63,7 +63,7 @@ class BufferMgr
         // flush pages for file
         bool flushPages(int fd);
         // force a page to disk, but not removing from buffer
-        bool forcePages(int fd, int page_id);
+        bool forcePage(int fd, int page_id);
         // remove all entries from buffer manager
         bool clearBuffer();
         // resize the buffer
