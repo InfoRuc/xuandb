@@ -10,6 +10,14 @@
 #include "sm/page_hashtable.h"
 // TODO: Not use system call for file read/write
 // To use C FILE or C++ fstream
+enum Segment 
+{
+    DATA_SEG = 0;
+    INDEX_SEG = 1;
+    LONG_SEG = 2;
+    ROLLBACK_SEG = 4;
+    TEMP_SEG = 5;
+};
 
 // BufPage - struct containing data about a page in the buffer
 //
