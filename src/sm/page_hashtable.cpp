@@ -63,7 +63,9 @@ bool PageHashTable::search(int fd, int page_id, int &slot)
     // has no hash bucket
     if (bucket < 0)
     {
-        cout << "Error: search failed because page has no hash bucket!" << endl;
+#ifdef DEBUG
+        cout << "[PageHashTable Debug]: Search failed because page has no hash bucket!" << endl;
+#endif
         return false;
     }
 
@@ -79,7 +81,9 @@ bool PageHashTable::search(int fd, int page_id, int &slot)
             return true;
         }
     }
-    cout << "Error: search failed because page is not in bucket!" << endl;
+#ifdef DEBUG
+    cout << "[PageHashTable Debug]: Search failed because page has no hash bucket!" << endl;
+#endif
     return false;
 }
 

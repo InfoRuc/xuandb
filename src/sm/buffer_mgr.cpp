@@ -21,6 +21,12 @@ BufferMgr::BufferMgr(int pg_num) : page_ht(), page_size(PAGE_WHOLE_SIZE), page_n
 {
     // allocate memory for buffer page table
     buf_table = new BufPage[page_num]; 
+    memset((void*)ds_pt, 0, DATA_SEGMENT_SIZE / 8);
+    memset((void*)ix_pt, 0, INDEX_SEGMENT_SIZE / 8);
+    memset((void*)ls_pt, 0, LONG_SEGMENT_SIZE / 8);
+    memset((void*)rb_pt, 0, ROLLBACK_SEGMENT_SIZE / 8);
+    memset((void*)ts_pt, 0, TEMP_SEGMENT_SIZE / 8);
+    
     
     // init buffer table
     for (int i = 0; i < page_num; i++)
@@ -520,6 +526,116 @@ void BufferMgr::initPageDesc(int fd, int page_id, int slot)
 }
 
 //////////////////////////////////////////////////////////////
+// Function: generatePageID 
+// Description: global unique page id generator
+// Author: 
+// E-mail: 
+//////////////////////////////////////////////////////////////
+bool BufferMgr::generatePageID(int &page_id, Segment_t seg)
+{
+    char *seg_table_ptr;
+    // find in segment table
+    switch (seg)
+    {
+        case DATA_SEG:
+            seg_table_ptr = ds_pt;
+            break;
+        case INDEX_SEG:
+            seg_table_ptr = ix_pt;
+            break;
+        case LONG_SEG:
+            seg_table_ptr = ls_pt;
+            break;
+        case ROLLBACK_SEG:
+            seg_table_ptr = rb_pt;
+            break;
+        case TEMP_SEG:
+            seg_table_ptr = ts_pt;
+            break;
+        default:
+            cout << "[BufferMgr Error]: " << "Generate page ID failed!" << endl;
+            return false;
+            break;
+    }
+
+    for (int i = 0; i < DATA_SEGMENT_SIZE / 8; i++)  
+    {
+        if (seg_table_ptr[i] == 0)
+        {
+            page_id = i * 8;
+            return true;
+        }
+        else
+        {
+            char sel = 1;
+            for (int j = 0; j < 8; j++)
+            {
+                if ((seg_table_ptr[j] & sel) == 0) 
+                {
+                    page_id = i * 8 + j;
+                    // mark used flag
+                    seg_table_ptr[j] = seg_table_ptr[j] | sel;
+                    return true;
+                }
+                sel = sel << 1;
+            }
+        }
+    }
+    
+    return false;
+}
+
+//////////////////////////////////////////////////////////////
+// Function: pageLocate
+// Description: find the page location
+// Author: 
+// E-mail: 
+//////////////////////////////////////////////////////////////
+bool BufferMgr::pageLocate(int &offset, Segment_t seg, PageID_t page_id)
+{
+    int seg_offset = 0;
+    switch (seg)
+    {
+        case DATA_SEG:
+            offset = page_id * page_size + DATA_SEGMENT_OFFSET;
+            seg_offset = DATA_SEGMENT_OFFSET;
+            break;
+        case INDEX_SEG:
+            offset = page_id * page_size + INDEX_SEGMENT_OFFSET;
+            seg_offset = INDEX_SEGMENT_OFFSET;
+            break;
+        case LONG_SEG:
+            offset = page_id * page_size + LONG_SEGMENT_OFFSET;
+            seg_offset = LONG_SEGMENT_OFFSET;
+            break;
+        case ROLLBACK_SEG:
+            offset = page_id * page_size + ROLLBACK_SEGMENT_OFFSET;
+            seg_offset = ROLLBACK_SEGMENT_OFFSET;
+            break;
+        case TEMP_SEG:
+            offset = page_id * page_size + TEMP_SEGMENT_OFFSET;
+            seg_offset = TEMP_SEGMENT_OFFSET;
+            break;
+        default:
+            cout << "[BufferMgr Error]: " << "Locate #" << page_id << " error!" << endl;
+            return false;
+            break;
+    }
+    if (offset < 0 || offset > seg_offset)
+    {
+        cout << "[BufferMgr Error]: " << "Locate #" << page_id << " error!" << endl;
+        return false;
+    }
+    else
+    {
+#ifdef DEBUG
+        cout << "[BufferMgr Debug]: " << "Locate #" << page_id << " succeeded." << endl;
+#endif
+        return true;
+    }
+}
+
+//////////////////////////////////////////////////////////////
 // Function: allocateBlock
 // Description: allocate block for a page from buffer pool
 // Author: Liu Chaoyang
@@ -534,7 +650,9 @@ bool BufferMgr::allocateBlock(char *&buffer)
 
     // generate a unique page id
     // TODO: design a function to generate id for page
-    int page_id = (long)buf_table[slot].data_ptr % (long)INT_MAX;
+    //int page_id = (long)buf_table[slot].data_ptr % (long)INT_MAX;
+    int page_id;
+    generatePageID(page_id, DATA_SEG);
 
     if (!page_ht.insert(-1, page_id, slot))
     {

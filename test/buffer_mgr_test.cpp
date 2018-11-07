@@ -25,7 +25,7 @@ void Buffer_Mgr_Test(int buf_size = 40, int bench_size = 45)
     // Get Page Test
     BufferMgr bm(buf_size);
     char file_name[32] = "buf_test_data.mdb";
-    int sys_fd = open(file_name, O_CREAT | O_RDWR, 0777);
+    int sys_fd = open(file_name, O_CREAT | O_RDWR, 0600);
     if (sys_fd < 0)
     {
         cout << "[BufferMgr Test Error]: Open file failed!" << endl;
@@ -37,7 +37,7 @@ void Buffer_Mgr_Test(int buf_size = 40, int bench_size = 45)
     char *bench_data = new char[page_size];
     memset(bench_data, 1, page_size);
     
-    int file_header_size = 4096;
+    int file_header_size = FILE_HEADER_SIZE;
     char file_header[file_header_size];
 
     cout << "[BufferMgr Test Info]: Generating benchmark data..." << endl;

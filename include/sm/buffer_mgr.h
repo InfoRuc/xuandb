@@ -7,16 +7,17 @@
  */
 #pragma once
 
+#include "common.h"
 #include "sm/page_hashtable.h"
 // TODO: Not use system call for file read/write
 // To use C FILE or C++ fstream
-enum Segment 
+enum Segment_t
 {
-    DATA_SEG = 0;
-    INDEX_SEG = 1;
-    LONG_SEG = 2;
-    ROLLBACK_SEG = 4;
-    TEMP_SEG = 5;
+    DATA_SEG = 0,
+    INDEX_SEG = 1,
+    LONG_SEG = 2,
+    ROLLBACK_SEG = 4,
+    TEMP_SEG = 5
 };
 
 // BufPage - struct containing data about a page in the buffer
@@ -46,6 +47,12 @@ class BufferMgr
         int first;                // head of used list, used as MRU page slot
         int last;                 // tail of used list, used as LRU page slot
         int free;                // head of free list
+        // table of data segment page table
+        char ds_pt[DATA_SEGMENT_SIZE / 8];
+        char ix_pt[INDEX_SEGMENT_SIZE / 8];
+        char ls_pt[LONG_SEGMENT_SIZE / 8];
+        char rb_pt[ROLLBACK_SEGMENT_SIZE / 8];
+        char ts_pt[TEMP_SEGMENT_SIZE / 8];
 
         void freeListInsert(int slot); // insert slot at head of free list
         void usedListInsert(int slot); // insert slot at head of used list
@@ -57,6 +64,10 @@ class BufferMgr
         bool  writePage(int fd, int page_id, char *source);
         // init the page desc entry
         void initPageDesc (int fd, int page_id, int slot);
+        // generate unique id
+        bool generatePageID(int &page_id, Segment_t seg);
+        // find the page location
+        bool pageLocate(int &offset, Segment_t seg, PageID_t page_id);
     public:
         BufferMgr(int pages_num);
         ~BufferMgr();

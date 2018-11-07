@@ -7,10 +7,17 @@
  */
 #pragma once
 
+#include "common.h"
+
 struct FileHeader
 {
     int first_free;
     int pages_num;
+    char ds_pt[DATA_SEGMENT_SIZE / 8];
+    char ix_pt[INDEX_SEGMENT_SIZE / 8];
+    char ls_pt[LONG_SEGMENT_SIZE / 8];
+    char rb_pt[ROLLBACK_SEGMENT_SIZE / 8];
+    char ts_pt[TEMP_SEGMENT_SIZE / 8];
 };
 
 class BufferMgr;

@@ -54,32 +54,185 @@ StorageMgr& StorageMgr::operator=(const StorageMgr &storage_mgr)
 bool StorageMgr::initSM(const char *file_name)
 {
     int sys_fd = -1;
+    int offset = 0;
+    int bytes_num;
 
     // init file header
     hdr.first_free = -1;
     hdr.pages_num = 0;
-    sys_fd = open(file_name, O_CREAT | O_EXCL | O_WRONLY, 0600);
+    sys_fd = open(file_name, O_RDWR, 0600);
     if (sys_fd < 0)
     {
-        cout << "Error: open file failed!" << endl;
-        return false;
+#ifdef DEBUG
+        cout << "[StorageMgr Debug]: " << "DB file does not exist." << endl;
+        cout << "[StorageMgr Debug]: " << "Creating DB file..." << endl;
+#endif
+        sys_fd = open(file_name, O_CREAT | O_RDWR, 0600);
+        if (sys_fd < 0)
+        {
+            cout << "Error: open file failed!" << endl;
+            return false;
+        }
+        hdr.first_free = -1;
+        hdr.pages_num = 0;
+        memset(hdr.ds_pt, 0, DATA_SEGMENT_SIZE / 8);
+        memset(hdr.ix_pt, 0, INDEX_SEGMENT_SIZE / 8);
+        memset(hdr.ls_pt, 0, LONG_SEGMENT_SIZE / 8);
+        memset(hdr.rb_pt, 0, ROLLBACK_SEGMENT_SIZE / 8);
+        memset(hdr.ts_pt, 0, TEMP_SEGMENT_SIZE / 8);
+        int file_header_size = FILE_HEADER_SIZE;
+#ifdef DEBUG
+        cout << "[StorageMgr Debug]: " << "Writing file header..." << endl;
+#endif
+        bytes_num = write(sys_fd, &hdr.first_free, sizeof(int));
+        if (bytes_num != sizeof(int))
+        {
+            cout << "Error: write file header failed" << endl;
+            close(sys_fd);
+            return false;
+        }
+        bytes_num = write(sys_fd, &hdr.pages_num, sizeof(int));
+
+        if (bytes_num != sizeof(int))
+        {
+            cout << "Error: write file header failed" << endl;
+            close(sys_fd);
+            return false;
+        }
+        offset = 4096;
+        bytes_num = write(sys_fd, hdr.ds_pt, DATA_SEGMENT_SIZE / 8);
+        if (bytes_num < DATA_SEGMENT_SIZE / 8)
+        {
+            cout << "[StorageMgr Error]: Write file header failed." << endl;
+            return false;
+        }
+        offset += DATA_SEGMENT_SIZE / 8;
+        if (lseek(sys_fd, offset, SEEK_SET) < 0)
+        {
+            cout << "[StorageMgr Error]: Seek page failed." << endl;
+            return false;
+        }
+        bytes_num = write(sys_fd, hdr.ix_pt, INDEX_SEGMENT_SIZE / 8);
+        if (bytes_num < INDEX_SEGMENT_SIZE / 8)
+        {
+            cout << "[StorageMgr Error]: Write file header failed." << endl;
+            return false;
+        }
+        offset += INDEX_SEGMENT_SIZE / 8;
+        if (lseek(sys_fd, offset, SEEK_SET) < 0)
+        {
+            cout << "[StorageMgr Error]: Write file header failed." << endl;
+            return false;
+        }
+        bytes_num = write(sys_fd, hdr.ls_pt, LONG_SEGMENT_SIZE / 8);
+        if (bytes_num < LONG_SEGMENT_SIZE / 8)
+        {
+            cout << "[StorageMgr Error]: Write file header failed." << endl;
+            return false;
+        }
+
+        offset += LONG_SEGMENT_SIZE / 8;
+        if (lseek(sys_fd, offset, SEEK_SET) < 0)
+        {
+            cout << "[StorageMgr Error]: Seek page failed." << endl;
+            return false;
+        }
+        bytes_num = write(sys_fd, hdr.rb_pt, ROLLBACK_SEGMENT_SIZE / 8);
+        if (bytes_num < ROLLBACK_SEGMENT_SIZE / 8)
+        {
+            cout << "[StorageMgr Error]: Write file header failed." << endl;
+            return false;
+        }
+        offset += ROLLBACK_SEGMENT_SIZE / 8;
+        if (lseek(sys_fd, offset, SEEK_SET) < 0)
+        {
+            cout << "[StorageMgr Error]: Seek page failed." << endl;
+            return false;
+        }
+        bytes_num = write(sys_fd, hdr.ts_pt, TEMP_SEGMENT_SIZE / 8);
+        if (bytes_num < TEMP_SEGMENT_SIZE / 8)
+        {
+            cout << "[StorageMgr Error]: Write file header failed." << endl;
+            return false;
+        }
     }
-    int file_header_size = 4096;
-    char file_header[file_header_size];
 
-    memset(file_header, 0, file_header_size);
-    FileHeader* hdr_buf = (FileHeader*)file_header;
-    hdr_buf->first_free = hdr.first_free;
-    hdr_buf->pages_num = hdr.pages_num;
-
-    int bytes_num = write(sys_fd, hdr_buf, file_header_size);
-
-    if (bytes_num != file_header_size)
+    bytes_num = read(sys_fd, &hdr.first_free, sizeof(int));
+    if (bytes_num < sizeof(int))
     {
-        cout << "Error: write file header failed" << endl;
-        close(sys_fd);
+        cout << "[StorageMgr Error]: Read file header(first_free) failed." << endl;
         return false;
     }
+    bytes_num = read(sys_fd, &hdr.pages_num, sizeof(int));
+    if (bytes_num < sizeof(int))
+    {
+        cout << "[StorageMgr Error]: Read file header(pages_num) failed." << endl;
+        return false;
+    }
+    offset = 4096;
+    if (lseek(sys_fd, offset, SEEK_SET) < 0)
+    {
+        cout << "[StorageMgr Error]: Seek page failed." << endl;
+        return false;
+    }
+    bytes_num = read(sys_fd, hdr.ds_pt, DATA_SEGMENT_SIZE / 8);
+    if (bytes_num < DATA_SEGMENT_SIZE / 8)
+    {
+        cout << "[StorageMgr Error]: Read file header failed." << endl;
+        return false;
+    }
+    offset += DATA_SEGMENT_SIZE / 8;
+    if (lseek(sys_fd, offset, SEEK_SET) < 0)
+    {
+        cout << "[StorageMgr Error]: Seek page failed." << endl;
+        return false;
+    }
+    bytes_num = read(sys_fd, hdr.ix_pt, INDEX_SEGMENT_SIZE / 8);
+    if (bytes_num < INDEX_SEGMENT_SIZE / 8)
+    {
+        cout << "[StorageMgr Error]: Read file header failed." << endl;
+        return false;
+    }
+    offset += INDEX_SEGMENT_SIZE / 8;
+    if (lseek(sys_fd, offset, SEEK_SET) < 0)
+    {
+        cout << "[StorageMgr Error]: Seek page failed." << endl;
+        return false;
+    }
+    bytes_num = read(sys_fd, hdr.ls_pt, LONG_SEGMENT_SIZE / 8);
+    if (bytes_num < LONG_SEGMENT_SIZE / 8)
+    {
+        cout << "[StorageMgr Error]: Read file header failed." << endl;
+        return false;
+    }
+    offset += LONG_SEGMENT_SIZE / 8;
+    if (lseek(sys_fd, offset, SEEK_SET) < 0)
+    {
+        cout << "[StorageMgr Error]: Seek page failed." << endl;
+        return false;
+    }
+    bytes_num = read(sys_fd, hdr.rb_pt, ROLLBACK_SEGMENT_SIZE / 8);
+    if (bytes_num < ROLLBACK_SEGMENT_SIZE / 8)
+    {
+        cout << "[StorageMgr Error]: Read file header failed." << endl;
+        return false;
+    }
+    offset += ROLLBACK_SEGMENT_SIZE / 8;
+    if (lseek(sys_fd, offset, SEEK_SET) < 0)
+    {
+        cout << "[StorageMgr Error]: Seek page failed." << endl;
+        return false;
+    }
+    bytes_num = read(sys_fd, hdr.ts_pt, TEMP_SEGMENT_SIZE / 8);
+    if (bytes_num < TEMP_SEGMENT_SIZE / 8)
+    {
+        cout << "[StorageMgr Error]: Read file header failed." << endl;
+        return false;
+    }
+    //memset(file_header, 0, file_header_size);
+    //FileHeader* hdr_buf = (FileHeader*)file_header;
+    //hdr_buf->first_free = hdr.first_free;
+    //hdr_buf->pages_num = hdr.pages_num;
     
     hdr_changed = false;
     file_open = true;

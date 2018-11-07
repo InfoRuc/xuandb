@@ -32,7 +32,7 @@ void Storage_Mgr_Test(int buf_size = 40)
 
 int main(int argc, char *argv[])
 {
-    cout << "**************Start test for page hashtable.**************" << endl;
+    cout << "**************Start test for storage manager.**************" << endl;
     Storage_Mgr_Test();
     return 0;
 }
