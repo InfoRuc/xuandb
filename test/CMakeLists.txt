@@ -15,3 +15,5 @@ TARGET_LINK_LIBRARIES(storage_mgr_test ${MDB_SM_LIB})
 
 ADD_EXECUTABLE(buffer_mgr_test buffer_mgr_test.cpp)
 TARGET_LINK_LIBRARIES(buffer_mgr_test ${MDB_SM_LIB})
+
+ADD_EXECUTABLE(util_test util_test.cpp)
